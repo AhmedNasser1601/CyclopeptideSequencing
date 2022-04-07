@@ -1,131 +1,129 @@
+'''Team Members=>
+        - Ahmed Nasser
+        - Yossef Essam
+        - Maryam Abdulhady
+        - Amany Gamal
+        - Abdulrahman Yossry
+'''
+
+
 from itertools import combinations
-#Amino Acids weights
-weights={'R':156,
-        'N':114,
-        'D':115,
-        'C':103,
-        'E':129,
-        'Q':128,
-        'G':57,
-        'H':137,
-        'L':113,
-        'M':131,
-        'F':147,
-        'P':97,
-        'S':87,
-        'T':101,
-        'W':186,
-        'Y':136,
-        'V':99,
-        'A':71}
+import sys
 
 
-# get the initial list of the peptide
-#initial_list_of_aas
-def init_list(list_of_weights):
-  initial_list1=[]
-  initial_list2=[]
+# Creates the Initial_List of 1-mers to extend the subPeptide
+def Initial_List(spectWeights):
+    initList1 = []
+    initList2 = []
+    freq = {}  # Holds each AA and its frequency
 
-  for i in range (len(list_of_weights)):
-    weight=list_of_weights[i] 
-    #get the amino acid by its key
-    for aa,aa_weight in weights.items():  
-      if weight==aa_weight:  
-        initial_list2.append(aa)            #inital_list2 has duplication values
-        if aa not in initial_list1:         #remove duplicates
-          initial_list1.append(aa)          #initial_list1 has no duplications
+    for i in range(len(spectWeights)):
+        for aa, aaWeight in weightsDict.items():  # Gets the AA by its key
+            if aaWeight == spectWeights[i]:
+                initList2.append(aa)  # initList2 has the duplicates
+                if aa not in initList1:  # Removes duplicates
+                    initList1.append(aa)
 
-  frequency={}   #dictionary that holds the each amino acid with its frequency
+    for i in range(len(initList1)):  # Initialize all frequencies by zero
+        freq[initList1[i]] = 0
 
-   #initialize all frequencies by zero
-  for i in range (len(initial_list1)):
-    frequency[initial_list1[i]]=0
+    for i in range(len(initList2)):  # Increment no. of Frequency
+        freq[initList2[i]] += 1
 
-  #increment all the values by its number of repetion
-  for i in range (len(initial_list2)):
-    frequency[initial_list2[i]]=frequency[initial_list2[i]]+1   
-         
-  return initial_list2,frequency
+    return initList2, freq
 
 
-#function to return the weight of the sub_peptide
-def get_weight(sub_peptide):
-  sum=0
-  for i in range(len(sub_peptide)):
-    sum+=weights[sub_peptide[i]]
-  return sum
+# Checks whether a subPeptide IsConsistent with the theoSpect.
+def IsConsistent(subPeptide, theoSpect):
+    weight = []
+    holder = theoSpect.copy()
 
-#check the concistency of the sub_Peptide
-def isConsistent(sub_peptide,thero_spect):
-  weight=[]
-  temp=[]  #temporary list that has a copy of the therotical spectrum
-  
-  #append all the values in the therotical spectrum in temp
-  for i in range (len(thero_spect)):
-   temp.append(thero_spect[i])
+    # Get all combinations from subPeptide
+    peptideCombs = [subPeptide[x:y]
+                    for x, y in combinations(range(len(subPeptide)+1), r=2)]
 
-  #get all the combinations from the sub_Peptide using combinations (built in fn)
-  combination=[sub_peptide[x:y] for x,y in combinations(range(len(sub_peptide)+1),r=2)]
-  
-  #get the weight of all combination and append them to weight[]
-  for i in range(len(combination)):
-    weight.append(get_weight(combination[i]))
-  
-  #check the consistency
-  for k in range(len(sub_peptide)):
-   for i in temp:
-    for j in weight:
-       if i==j:
-        if i in temp:
-          temp.remove(i)
-          weight.remove(j)
+    # Get weights of all peptideCombs and append them to weight[]
+    for i in range(len(peptideCombs)):
+        weight.append(getWeight(peptideCombs[i]))
 
-  if len(weight)!=0:
-     return False
-  return True
-                
-#linear_spectrum
-def linear_spectrum(initial_list,dic,therotical_spec):
-  multi_mers=[]
-  #drive a copy to the inital list 
-  for i in range(len(initial_list)):
-    multi_mers.append(initial_list[i])
-  
-  #Branch step
-  for k in range (len(initial_list)):
-   count=0
-   for i in range(len(multi_mers)):
-    for j in range(len(initial_list)):
-      spectrum=multi_mers[i]+initial_list[j]   #extend spectrum by the initial list
-      consistency=isConsistent(spectrum,therotical_spec)  #Is Consistent ? (True,False)
-      flag=0
-      for k in range(len(spectrum)):
-        count=spectrum.count(spectrum[k]) # count the frequency of spectrum's elements
-        if count> dic[spectrum[k]]: # check if the frequency allowed eg. c>2 -> not allowed
-          flag=1
-          break
-        #Bound Step  
-        if flag==0 and consistency==True:
-         if spectrum not in multi_mers:
-          multi_mers.append(spectrum)
-  output=[]
-  #get the final representations of the peptide from multi_mers
-  for i in range(len(multi_mers)):
-    if len(multi_mers[i])==len(initial_list):
-      output.append(multi_mers[i])
+    finalWeight = validate(subPeptide, weight, holder)
 
-  return output
+    if len(finalWeight) != 0: return False
+    return True
 
 
+def getWeight(subPeptide):  # Gets Total of weights of a subPeptide
+    sum = 0
+    for i in range(len(subPeptide)):
+        sum += weightsDict[subPeptide[i]]
+    return sum
+
+
+def validate(subPeptide, weight, holder):
+    for k in range(len(subPeptide)):
+        for i in holder:
+            for j in weight:
+                if i == j and i in holder:
+                    holder.remove(i)
+                    weight.remove(j)
+    return weight
+
+
+# Calculates the Linear_Spectrum of a protein sequence (without circulation).
+def Linear_Spectrum(initList, freq, theoSpect):
+    cycloPeptide = []
+    multiMers = initList.copy()
+
+    for k in range(len(initList)):  # Branch step
+        spectCount = 0
+        for i in range(len(multiMers)):
+            for j in range(len(initList)):
+                flag = 0
+                spect = multiMers[i] + initList[j]  # Merge multiMers with initial_list into spect
+
+                for l in range(len(spect)):
+                    spectCount = spect.count(spect[l])
+                    if spectCount > freq[spect[l]]:     # Checks if the frequency allowed
+                        flag = 1
+                        break
+
+                if flag == 0 and IsConsistent(spect, theoSpect):    # Bound step
+                    if spect not in multiMers:
+                        multiMers.append(spect)
+
+    # Get final representations of the cycloPeptide from multiMers
+    for i in range(len(multiMers)):
+        if len(multiMers[i]) == len(initList):
+            cycloPeptide.append(multiMers[i])
+    return cycloPeptide
+
+
+
+
+'''Therotical Spectrum=>
+        0 97 97 99 101 103 196 198 200 202 295 297 299 299 301 394 396 398 400 400 497
+'''
 
 if __name__ == "__main__":
-    theoSpect=[]
-    
-    theoSpect = [int(x) for x in (
-        list(input("Enter Therotical Spectrum: ").split(' '))
+    weightsDict = {}
+
+    try:
+        fileName = 'weight.txt'
+        f = open(fileName)
+        for line in f:
+            x = line.split(' ')
+            line.rstrip()
+            weightsDict[x[0]] = int(x[1])
+        f.close()
+    except IOError:
+        print("File (%s) doesn't exist" % fileName)
+        sys.exit(0)
+
+    theoriticalSpectrum = [int(x) for x in (
+        list(input("\nEnter Therotical Spectrum: ").split(' '))
     )]
 
-    unique_aa, freq = init_list(theoSpect)
-    allCycloPeptides = linear_spectrum(unique_aa, freq, theoSpect)
-    
-    print("All Cyclo Peptides=> ", allCycloPeptides)
+    unique_aa, frequencies = Initial_List(theoriticalSpectrum)
+    allCycloPeptides = Linear_Spectrum(unique_aa, frequencies, theoriticalSpectrum)
+
+    print("\tAll Cyclo Peptides=> ", allCycloPeptides)
